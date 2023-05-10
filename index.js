@@ -1,48 +1,82 @@
-const express = require('express')
-const json2scv = require('json2csv').parse
-const spawn = require('child_process').spawn
-const fs = require('fs')
-const app = express()
-const port = 3000
+const express = require("express");
+const json2scv = require("json2csv").parse;
+const spawn = require("child_process").spawn;
+const axios = require("axios");
+const bodyParser = require("body-parser");
+const fs = require("fs");
+const app = express();
+const port = 3000;
 
-app.get('/', async(req, res) => {
-    temp=34.6,
-    dewpoint=11.3,
-    windspeed=0.9,
-    relhumid=24.41
+var urlencodedParser = bodyParser.urlencoded({ extended: true });
 
-    const obj = [
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, OPTIONS, PUT, PATCH, DELETE"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
+  next();
+});
+app.use(express.json());
+
+app.get("/", async (req, res) => {
+  res.send("hello")
+});
+
+app.post("/", urlencodedParser, async (req, res) => {
+  await axios
+    .get(
+      `https://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey=ylG8Wro6vuNcqIFsQmZxi5KnQlYmP5PB&q=${req.body.latitude}%2C${req.body.longitude}`
+    )
+    .then(async (resd) => {
+      //console.log(res.data.Key)
+      const weatherData = await axios.get(
+        `https://dataservice.accuweather.com/currentconditions/v1/${resd.data.Key}?apikey=ylG8Wro6vuNcqIFsQmZxi5KnQlYmP5PB&details=true`
+      );
+
+      const obj = [
         {
-            "Temperature":temp,
-            "Dew Point":dewpoint,
-            "Wind Speed":windspeed,
-            "Relative Humidity":relhumid
+          Temperature: weatherData.data[0].Temperature.Metric.Value,
+          "Dew Point": weatherData.data[0].DewPoint.Metric.Value,
+          "Wind Speed": weatherData.data[0].Wind.Speed.Metric.Value,
+          "Relative Humidity": weatherData.data[0].RelativeHumidity,
+        },
+      ];
+
+      const feilds = [
+        "Temperature",
+        "Dew Point",
+        "Wind Speed",
+        "Relative Humidity",
+      ];
+
+      const csv = json2scv(obj, feilds);
+
+      fs.writeFile("test.csv", csv, (e) => {
+        if (e) {
+          throw e;
+        } else {
+          console.log("csv created");
         }
-    ]
+      });
 
-    const feilds = ["Temperature","Dew Point","Wind Speed","Relative Humidity"];
+      var process = await spawn("python", ["model.py"]);
 
-    const csv = json2scv(obj,feilds);
-    
-    fs.writeFile('test.csv',csv,(e)=>{
-        if(e){
-            throw e
-        }
-        else{
-            console.log("csv created")
-        }
-    })
-
-    var process = await spawn('python',["model.py"])
-
-    process.stdout.on('data', function(data) {
-
+      process.stdout.on("data", function (data) {
         console.log(data.toString());
         res.write(data);
-        res.end();
-    });
-})
+        res.end()
+      });
+    }).catch(e=>{
+        res.send(e);
+    })
+    
+});
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
+  console.log(`Example app listening on port ${port}`);
+});
