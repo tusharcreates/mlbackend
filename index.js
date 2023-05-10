@@ -30,12 +30,12 @@ app.get("/", async (req, res) => {
 app.post("/", urlencodedParser, async (req, res) => {
   await axios
     .get(
-      `https://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey=ylG8Wro6vuNcqIFsQmZxi5KnQlYmP5PB&q=${req.body.latitude}%2C${req.body.longitude}`
+      `https://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey=xMymMgPVUuEJQlvLkaJhVfr0LC9yJKAo&q=${req.body.latitude}%2C${req.body.longitude}`
     )
     .then(async (resd) => {
       //console.log(res.data.Key)
       const weatherData = await axios.get(
-        `https://dataservice.accuweather.com/currentconditions/v1/${resd.data.Key}?apikey=ylG8Wro6vuNcqIFsQmZxi5KnQlYmP5PB&details=true`
+        `https://dataservice.accuweather.com/currentconditions/v1/${resd.data.Key}?apikey=xMymMgPVUuEJQlvLkaJhVfr0LC9yJKAo&details=true`
       );
 
       const obj = [
@@ -67,11 +67,13 @@ app.post("/", urlencodedParser, async (req, res) => {
       var process = await spawn("python", ["model.py"]);
 
       process.stdout.on("data", function (data) {
-        console.log(data.toString());
+        console.log("Params:",obj);
+        console.log("Prediction:",data.toString());
         res.write(data);
         res.end()
       });
     }).catch(e=>{
+      console.log(e)
         res.send(e);
     })
     
